@@ -1,8 +1,6 @@
 const fs = require("fs");
-// const parse = require("csv-parse");
-const path = require("node:path");
-// import { parse } from "csv-parse";
 const csv = require("csv-parse");
+const path = require("node:path");
 
 const { parse, transform, stringify } = csv;
 
@@ -12,19 +10,20 @@ const plansFilePath = path.join(__dirname, "assets", "plans.csv");
 const zipsFilePath = path.join(__dirname, "assets", "zips.csv");
 
 // Read CSV files
-const slcspData = fs.readFileSync(slcspFilePath, "utf8");
-const plansData = fs.readFileSync(plansFilePath, "utf8");
-const zipsData = fs.readFileSync(zipsFilePath, "utf8");
+const slcsp = fs.readFileSync(slcspFilePath, "utf8");
+const plans = fs.readFileSync(plansFilePath, "utf8");
+const zips = fs.readFileSync(zipsFilePath, "utf8");
 
-console.log({ slcspData, plansData, zipsData });
+// console.log({ slcsp, plans, zips });
+// console.log({ plans });
 
-// Parse CSV data
+// Parse CSV
 const parseOptions = { columns: true, skip_empty_lines: true };
-const slcspRows = parse(slcspData, parseOptions);
-const plansRows = parse(plansData, parseOptions);
-const zipsRows = parse(zipsData, parseOptions);
+const slcspRows = parse(slcsp, parseOptions);
+const plansRows = parse(plans, parseOptions);
+const zipsRows = parse(zips, parseOptions);
 
-console.log({ slcspRows, plansRows, zipsRows });
+// console.log({ slcspRows, plansRows, zipsRows });
 
 // Create a map of ZIP codes to rate areas
 const zipToRateArea = {};
@@ -51,22 +50,19 @@ function findSecondLowestSilverPlanRate(plans, rateArea) {
   return sortedRates[1];
 }
 
-// Iterate through each ZIP code in slcsp.csv and calculate SLCSP rate
-const slcspWithRates = slcspRows.map((row) => {
+// Iterate through each ZIP code in slcsp.csv
+slcspRows.forEach((row) => {
   const zip = row["zipcode"];
   const rateAreas = zipToRateArea[zip];
   if (!rateAreas || rateAreas.length !== 1) {
-    return { ...row, rate: "" }; // Ambiguous or unknown rate area
+    console.log(`${zip},`); // Ambiguous or unknown rate area
+    return;
   }
   const rateArea = rateAreas[0];
   const slcspRate = findSecondLowestSilverPlanRate(plansRows, rateArea);
-  return { ...row, rate: slcspRate ? slcspRate.toFixed(2) : "" };
+  if (slcspRate) {
+    console.log(`${zip},${slcspRate.toFixed(2)}`);
+  } else {
+    console.log(`${zip},`); // No second lowest cost silver plan
+  }
 });
-
-// Output the modified slcsp.csv data
-const outputCsv = [
-  Object.keys(slcspRows[0]).join(","), // Headers
-  ...slcspWithRates.map((row) => Object.values(row).join(",")),
-].join("\n");
-
-console.log(outputCsv);
