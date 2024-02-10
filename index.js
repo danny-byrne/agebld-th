@@ -14,6 +14,7 @@ const zipsFilePath = path.join(__dirname, "assets", "zips.csv");
 let slcspRows = [];
 let plansRows = [];
 let zipsRows = [];
+let zipsToRateAreas = {};
 
 const readCSV = () => {
   fs.createReadStream(slcspFilePath)
@@ -22,8 +23,7 @@ const readCSV = () => {
       slcspRows.push(row);
     })
     .on("end", () => {
-      const zipToRateArea = processZipToRate();
-      console.log({ zipToRateArea });
+      //   console.log({ zipToRateArea, slcspRows });
     });
 
   fs.createReadStream(plansFilePath)
@@ -32,7 +32,7 @@ const readCSV = () => {
       plansRows.push(row);
     })
     .on("end", () => {
-      // console.log({ plansRows });
+      //   console.log({ plansRows });
     });
 
   fs.createReadStream(zipsFilePath)
@@ -41,7 +41,7 @@ const readCSV = () => {
       zipsRows.push(row);
     })
     .on("end", () => {
-      // console.log({ zipsRows });
+      zipsToRateAreas = processZipToRate();
     });
 };
 
@@ -49,51 +49,47 @@ const processZipToRate = () => {
   // Create a map of ZIP codes to rate areas
   const zipToRateArea = {};
 
-  for (let i = 1; i < slcspRows.length; i++) {
-    const [zip, rateArea] = slcspRows[i];
-    console.log("hello");
-    console.log({ zip, rateArea });
+  for (let i = 1; i < zipsRows.length; i++) {
+    const [zip, , , , rateArea] = zipsRows[i];
+    // console.log("hello");
+    // console.log({ zip, rateArea });
 
     if (!zipToRateArea[zip]) {
-      zipToRateArea[zip] = [];
+      zipToRateArea[zip] = rateArea;
     }
-    zipToRateArea[zip].push(rateArea);
+    // zipToRateArea[zip].push(rateArea);
   }
-
+  console.log({ zipToRateArea });
   return zipToRateArea;
 };
 
 readCSV();
 
-// console.log({ zipToRateArea, slcspRows });
-
 // Function to find the second lowest silver plan rate for a given rate area
 function findSecondLowestSilverPlanRate(plans, rateArea) {
   const silverPlansInArea = plans.filter((plan) => {
-    return plan["metal_level"] === "Silver" && plan["rate_area"] === rateArea;
+    const [, , metalLevel, rate, planRateArea] = plan;
+    if (metalLevel === "Silver" && planRateArea === rateArea) return rate;
   });
   if (silverPlansInArea.length < 2) {
     return; // Not enough silver plans to determine SLCSP
   }
   const sortedRates = silverPlansInArea
-    .map((plan) => parseFloat(plan["rate"]))
+    .map((rate) => parseFloat(rate))
     .sort((a, b) => a - b);
   return sortedRates[1];
 }
 
 // Iterate through each ZIP code in slcsp.csv
-slcspRows.forEach((row) => {
-  const zip = row["zipcode"];
-  const rateAreas = zipToRateArea[zip];
-  if (!rateAreas || rateAreas.length !== 1) {
-    console.log(`${zip},`); // Ambiguous or unknown rate area
-    return;
+function processSlcspRows() {
+  for (let i = 1; i < slcspRows.length; i++) {
+    const [zip, rateArea] = slcspRows[i];
+    // console.log({ zip, rateArea });
+    const slcspRate = findSecondLowestSilverPlanRate(plansRows, rateArea);
+    if (slcspRate) {
+      console.log(`${zip},${slcspRate.toFixed(2)}`);
+    } else {
+      false && console.log(`${zip},`); // No second lowest cost silver plan
+    }
   }
-  const rateArea = rateAreas[0];
-  const slcspRate = findSecondLowestSilverPlanRate(plansRows, rateArea);
-  if (slcspRate) {
-    console.log(`${zip},${slcspRate.toFixed(2)}`);
-  } else {
-    false && console.log(`${zip},`); // No second lowest cost silver plan
-  }
-});
+}
