@@ -10,5 +10,8 @@
   "license": "ISC",
   "dependencies": {
     "csv-parse": "^5.5.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
   }
 }

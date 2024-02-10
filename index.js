@@ -10,31 +10,62 @@ const plansFilePath = path.join(__dirname, "assets", "plans.csv");
 const zipsFilePath = path.join(__dirname, "assets", "zips.csv");
 
 // Read CSV files
-const slcsp = fs.readFileSync(slcspFilePath, "utf8");
-const plans = fs.readFileSync(plansFilePath, "utf8");
-const zips = fs.readFileSync(zipsFilePath, "utf8");
 
-// console.log({ slcsp, plans, zips });
-// console.log({ plans });
+let slcspRows = [];
+let plansRows = [];
+let zipsRows = [];
 
-// Parse CSV
-const parseOptions = { columns: true, skip_empty_lines: true };
-const slcspRows = parse(slcsp, parseOptions);
-const plansRows = parse(plans, parseOptions);
-const zipsRows = parse(zips, parseOptions);
+const readCSV = () => {
+  fs.createReadStream(slcspFilePath)
+    .pipe(parse({ delimiter: "," }))
+    .on("data", (row) => {
+      slcspRows.push(row);
+    })
+    .on("end", () => {
+      const zipToRateArea = processZipToRate();
+      console.log({ zipToRateArea });
+    });
 
-// console.log({ slcspRows, plansRows, zipsRows });
+  fs.createReadStream(plansFilePath)
+    .pipe(parse({ delimiter: "," }))
+    .on("data", (row) => {
+      plansRows.push(row);
+    })
+    .on("end", () => {
+      // console.log({ plansRows });
+    });
 
-// Create a map of ZIP codes to rate areas
-const zipToRateArea = {};
-zipsRows.forEach((row) => {
-  const zip = row["zipcode"];
-  const rateArea = row["rate_area"];
-  if (!zipToRateArea[zip]) {
-    zipToRateArea[zip] = [];
+  fs.createReadStream(zipsFilePath)
+    .pipe(parse({ delimiter: "," }))
+    .on("data", (row) => {
+      zipsRows.push(row);
+    })
+    .on("end", () => {
+      // console.log({ zipsRows });
+    });
+};
+
+const processZipToRate = () => {
+  // Create a map of ZIP codes to rate areas
+  const zipToRateArea = {};
+
+  for (let i = 1; i < slcspRows.length; i++) {
+    const [zip, rateArea] = slcspRows[i];
+    console.log("hello");
+    console.log({ zip, rateArea });
+
+    if (!zipToRateArea[zip]) {
+      zipToRateArea[zip] = [];
+    }
+    zipToRateArea[zip].push(rateArea);
   }
-  zipToRateArea[zip].push(rateArea);
-});
+
+  return zipToRateArea;
+};
+
+readCSV();
+
+// console.log({ zipToRateArea, slcspRows });
 
 // Function to find the second lowest silver plan rate for a given rate area
 function findSecondLowestSilverPlanRate(plans, rateArea) {
@@ -63,6 +94,6 @@ slcspRows.forEach((row) => {
   if (slcspRate) {
     console.log(`${zip},${slcspRate.toFixed(2)}`);
   } else {
-    console.log(`${zip},`); // No second lowest cost silver plan
+    false && console.log(`${zip},`); // No second lowest cost silver plan
   }
 });
