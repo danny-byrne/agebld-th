@@ -16,34 +16,38 @@ let plansRows = [];
 let zipsRows = [];
 let zipsToRateAreas = {};
 
-const readCSV = () => {
-  fs.createReadStream(zipsFilePath)
-    .pipe(parse({ delimiter: "," }))
-    .on("data", (row) => {
-      zipsRows.push(row);
-    })
-    .on("end", () => {
-      zipsToRateAreas = processZipToRate();
-    });
+const readCSV = async () => {
+  await new Promise((resolve, reject) => {
+    fs.createReadStream(zipsFilePath)
+      .pipe(parse({ delimiter: "," }))
+      .on("data", (row) => {
+        zipsRows.push(row);
+      })
+      .on("end", () => {
+        zipsToRateAreas = processZipToRate();
+        resolve();
+      });
+  });
 
-  fs.createReadStream(plansFilePath)
-    .pipe(parse({ delimiter: "," }))
-    .on("data", (row) => {
-      plansRows.push(row);
-    })
-    .on("end", () => {
-      //   console.log({ plansRows });
-    });
+  await new Promise((resolve, reject) => {
+    fs.createReadStream(plansFilePath)
+      .pipe(parse({ delimiter: "," }))
+      .on("data", (row) => {
+        plansRows.push(row);
+      })
+      .on("end", resolve);
+  });
 
-  fs.createReadStream(slcspFilePath)
-    .pipe(parse({ delimiter: "," }))
-    .on("data", (row) => {
-      slcspRows.push(row);
-    })
-    .on("end", () => {
-      //   console.log({ slcspRows });
-      processSlcspRows();
-    });
+  await new Promise((resolve, reject) => {
+    fs.createReadStream(slcspFilePath)
+      .pipe(parse({ delimiter: "," }))
+      .on("data", (row) => {
+        slcspRows.push(row);
+      })
+      .on("end", resolve);
+  });
+
+  processSlcspRows();
 };
 
 readCSV();
@@ -67,7 +71,7 @@ function processSlcspRows() {
   for (let i = 1; i < slcspRows.length; i++) {
     const [zip] = slcspRows[i];
     const rateArea = zipsToRateAreas[zip];
-    console.log({ zip, rateArea });
+    // console.log({ zip, rateArea });
     const slcspRate = findSecondLowestSilverPlanRate(plansRows, rateArea);
     // console.log({ slcspRate });
     if (slcspRate) {
