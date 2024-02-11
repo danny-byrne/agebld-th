@@ -17,13 +17,13 @@ let zipsRows = [];
 let zipsToRateAreas = {};
 
 const readCSV = () => {
-  fs.createReadStream(slcspFilePath)
+  fs.createReadStream(zipsFilePath)
     .pipe(parse({ delimiter: "," }))
     .on("data", (row) => {
-      slcspRows.push(row);
+      zipsRows.push(row);
     })
     .on("end", () => {
-      //   console.log({ zipToRateArea, slcspRows });
+      zipsToRateAreas = processZipToRate();
     });
 
   fs.createReadStream(plansFilePath)
@@ -35,57 +35,41 @@ const readCSV = () => {
       //   console.log({ plansRows });
     });
 
-  fs.createReadStream(zipsFilePath)
+  fs.createReadStream(slcspFilePath)
     .pipe(parse({ delimiter: "," }))
     .on("data", (row) => {
-      zipsRows.push(row);
+      slcspRows.push(row);
     })
     .on("end", () => {
-      zipsToRateAreas = processZipToRate();
+      //   console.log({ slcspRows });
+      processSlcspRows();
     });
 };
 
-const processZipToRate = () => {
+readCSV();
+
+function processZipToRate() {
   // Create a map of ZIP codes to rate areas
   const zipToRateArea = {};
 
   for (let i = 1; i < zipsRows.length; i++) {
     const [zip, , , , rateArea] = zipsRows[i];
-    // console.log("hello");
-    // console.log({ zip, rateArea });
 
     if (!zipToRateArea[zip]) {
       zipToRateArea[zip] = rateArea;
     }
-    // zipToRateArea[zip].push(rateArea);
   }
-  console.log({ zipToRateArea });
   return zipToRateArea;
-};
-
-readCSV();
-
-// Function to find the second lowest silver plan rate for a given rate area
-function findSecondLowestSilverPlanRate(plans, rateArea) {
-  const silverPlansInArea = plans.filter((plan) => {
-    const [, , metalLevel, rate, planRateArea] = plan;
-    if (metalLevel === "Silver" && planRateArea === rateArea) return rate;
-  });
-  if (silverPlansInArea.length < 2) {
-    return; // Not enough silver plans to determine SLCSP
-  }
-  const sortedRates = silverPlansInArea
-    .map((rate) => parseFloat(rate))
-    .sort((a, b) => a - b);
-  return sortedRates[1];
 }
 
-// Iterate through each ZIP code in slcsp.csv
 function processSlcspRows() {
+  console.log({ slcspRows, zipsToRateAreas });
   for (let i = 1; i < slcspRows.length; i++) {
-    const [zip, rateArea] = slcspRows[i];
-    // console.log({ zip, rateArea });
+    const [zip] = slcspRows[i];
+    const rateArea = zipsToRateAreas[zip];
+    console.log({ zip, rateArea });
     const slcspRate = findSecondLowestSilverPlanRate(plansRows, rateArea);
+    // console.log({ slcspRate });
     if (slcspRate) {
       console.log(`${zip},${slcspRate.toFixed(2)}`);
     } else {
@@ -93,3 +77,21 @@ function processSlcspRows() {
     }
   }
 }
+
+// Function to find the second lowest silver plan rate for a given rate area
+function findSecondLowestSilverPlanRate(plans, rateArea) {
+  //   console.log({ rateArea });
+  const silverPlanRatesInArea = plans.filter((plan) => {
+    const [, , metalLevel, rate, planRateArea] = plan;
+    if (metalLevel === "Silver" && planRateArea === rateArea) return rate;
+  });
+  if (silverPlanRatesInArea.length < 2) {
+    return; // Not enough silver plans to determine SLCSP
+  }
+  const sortedRates = silverPlanRatesInArea
+    .map((rate) => parseFloat(rate))
+    .sort((a, b) => a - b);
+  return sortedRates[1];
+}
+
+// Iterate through each ZIP code in slcsp.csv
